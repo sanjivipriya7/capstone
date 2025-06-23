@@ -1,130 +1,56 @@
-import { PrismaClient } from "@prisma/client";
+'use client'
 
-const prisma = new PrismaClient();
+import { useEffect, useState } from 'react'
 
-export default async function ProductListPage({
-  searchParams,
-}: {
-  searchParams: { category?: string; q?: string };
-}) {
-  const category = searchParams.category || "";
-  const q = searchParams.q?.toLowerCase() || "";
+export default function ProductsPage() {
+  const [products, setProducts] = useState([])
 
-  const products = await prisma.product.findMany({
-    where: {
-      AND: [
-        category ? { category } : {},
-        q
-          ? {
-              OR: [
-                { name: { contains: q, mode: "insensitive" } },
-                { description: { contains: q, mode: "insensitive" } },
-              ],
-            }
-          : {},
-      ],
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  useEffect(() => {
+    fetch('/api/products')
+      .then(res => res.json())
+      .then(data => setProducts(data))
+  }, [])
 
-  const categories = ["Necklace", "Ring", "Coin", "Anklet"];
+  const handleAddToCart = (product: any) => {
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]')
+
+    // Check if already in cart
+    const existingItem = cart.find((item: any) => item.id === product.id)
+    if (existingItem) {
+      existingItem.quantity += 1
+    } else {
+      cart.push({ ...product, quantity: 1 })
+    }
+
+    localStorage.setItem('cart', JSON.stringify(cart))
+    alert('Product added to cart!')
+  }
 
   return (
-    <main className="p-6 text-white bg-black min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">🛒 Silver Products</h1>
-
-      {/* 🔍 Search and Filter */}
-      <form className="flex gap-4 mb-6" method="GET">
-        <select
-          name="category"
-          defaultValue={category}
-          className="bg-gray-800 border border-gray-600 p-2 rounded"
-        >
-          <option value="">All Categories</option>
-          {categories.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="text"
-          name="q"
-          placeholder="Search products..."
-          defaultValue={q}
-          className="bg-gray-800 border border-gray-600 p-2 rounded w-full"
-        />
-
-        <button
-          type="submit"
-          className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-500"
-        >
-          Search
-        </button>
-      </form>
-
-      {products.length === 0 ? (
-        <p>No products found.</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              className="border border-gray-700 p-4 rounded-lg bg-gray-900 shadow-md"
+    <div className="p-4">
+      <h1 className="text-2xl mb-4 font-bold">All Products</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {products.map((product: any) => (
+          <div key={product.id} className="border p-4 rounded shadow">
+            {product.image && (
+              <img
+                src={product.image}
+                alt={product.name}
+                className="mb-2 w-full h-48 object-cover rounded"
+              />
+            )}
+            <h2 className="text-xl font-bold">{product.name}</h2>
+            <p className="text-sm text-gray-700">{product.description}</p>
+            <p className="font-semibold mt-1">₹{product.price}</p>
+            <button
+              onClick={() => handleAddToCart(product)}
+              className="mt-2 bg-blue-600 text-white px-3 py-1 rounded"
             >
-              <h2 className="text-xl font-semibold mb-2">
-                <a
-                  href={`/products/${product.id}`}
-                  className="hover:underline text-blue-400"
-                >
-                  {product.name}
-                </a>
-              </h2>
-
-              <p className="text-sm mb-1">
-                💸 <strong>Price:</strong> ₹{product.price}
-              </p>
-              <p className="text-sm mb-1">
-                ⚖️ <strong>Weight:</strong> {product.weight}g
-              </p>
-              <p className="text-sm mb-1">
-                🏷️ <strong>Category:</strong> {product.category}
-              </p>
-              <p className="text-sm mb-2">
-                📝 <strong>Description:</strong> {product.description}
-              </p>
-
-              {product.image && (
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-40 object-cover rounded mb-2"
-                />
-              )}
-
-              {/* Edit & Delete */}
-              <div className="flex justify-between mt-4">
-                <a
-                  href={`/products/edit/${product.id}`}
-                  className="bg-yellow-500 text-black px-3 py-1 rounded hover:bg-yellow-400"
-                >
-                  ✏️ Edit
-                </a>
-                <form action={`/api/products/${product.id}`} method="POST">
-                  <input type="hidden" name="_method" value="DELETE" />
-                  <button
-                    type="submit"
-                    className="bg-red-600 px-3 py-1 rounded hover:bg-red-500"
-                  >
-                    🗑️ Delete
-                  </button>
-                </form>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </main>
-  );
+              Add to Cart
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
